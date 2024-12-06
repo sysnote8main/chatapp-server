@@ -27,7 +27,11 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	for {
 		msgType, msgByte, err := conn.ReadMessage()
 		if err != nil {
-			slog.Error("Failed to read message", slog.Any("error", err))
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				slog.Error("Failed to read message with unexpected error", slog.Any("error", err))
+			} else {
+				slog.Info("Connection closed.")
+			}
 			break
 		}
 
