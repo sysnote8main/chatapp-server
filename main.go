@@ -7,6 +7,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+type Msg struct {
+	Username string
+	Message  string
+}
+
 var (
 	upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -25,18 +30,19 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	for {
-		msgType, msgByte, err := conn.ReadMessage()
+		var data Msg
+		err := conn.ReadJSON(&data)
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				slog.Error("Failed to read message with unexpected error", slog.Any("error", err))
+			if websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				slog.Info("Connection Closed.")
 			} else {
-				slog.Info("Connection closed.")
+				slog.Error("Failed to read Json", slog.Any("error", err))
 			}
 			break
 		}
 
-		slog.Info("Message received!", slog.String("message", string(msgByte)))
-		err = conn.WriteMessage(msgType, []byte("Server got a message!"))
+		slog.Info("Message received!", slog.String("username", data.Username), slog.String("message", string(data.Message)))
+		err = conn.WriteMessage(websocket.TextMessage, []byte("Server got a message!"))
 		if err != nil {
 			slog.Error("Failed to respond message", slog.Any("error", err))
 			break
